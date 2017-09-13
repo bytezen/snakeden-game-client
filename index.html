@@ -51,7 +51,7 @@
 
         let nextPosition = gameModel.position
             ,buffer
-            ,nextInd
+            ,nextPixel
 
         function draw() {
             // fill(0,100,0)
@@ -78,22 +78,21 @@
                 
             }
 
-            line(gameModel.position[0], gameModel.position[1],nextPosition[0],nextPosition[1])
-            gameModel.position = nextPosition
-
             //check to see if we are colliding with some color
             loadPixels()
-            nextInd = pos2Index(nextPosition)
-            currPixel = get(gameModel.position[0], gameModel.position[1]); //Math.max(0, nextInd - width)
-            prevPixel = get(gameModel.position[0], gameModel.position[1] - 1); //Math.max(0, nextInd - width)
+            nextPixel = get(nextPosition[0],nextPosition[1])
 
-            if(speed > 0) {
-                console.log(gameModel.position,"prev Row has red???" , currPixel > 0)
-                // console.log("got a collision")
+            if(nextPixel[0] + nextPixel[1] + nextPixel[2] > 0 ) {
+                // background(200,200,100,100);
+                console.log("we have a collision", nextPixel)
+                speed = 0;
+                fill('red')
+                rect(gameModel.position[0],gameModel.position[1],5,5)
+            } else {
+                line(gameModel.position[0], gameModel.position[1],nextPosition[0],nextPosition[1])
+                gameModel.position = nextPosition
             }
-            //if r,g, or b >0 then there is a collision
-            if(pixels[nextInd] > 0 ) {
-            }
+
 
             // if( pixels[nextInd * 4]  > 0 || pixels[nextInd * 4 + 1]  > 0 || pixels[nextInd * 4 + 2] > 0 ) {
             //     fill(200,200,0)
