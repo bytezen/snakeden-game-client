@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link rel="stylesheet" href="css/w3.css">
+    <script src="js/p5.min.js"></script>
+    <script src="js/p5.dom.min.js"></script>
+    <script src="js/lodash.min.js"></script>
+    <!-- Player object -->
+    <script>
+        let getPlayer = (name, opts = {}) => {
+            console.log(opts)
+            let config = _.assign({
+                                    initX: 0
+                                    ,initY: 0
+                                    ,dir: "down"
+                                    ,jumps: 3
+                                    ,speed: 1
+                                    ,color: "black"
+                                    }
+                                    ,opts)
+            console.log(config)
+
+            let x = config.initX
+                , y = config.initY
+                , pX = config.initX
+                , pY = config.initY
+                , dir = config.initDirection
+                , jumps = config.initJumps
+                , speed = config.speed
+                , color = config.color
+            
+            return {name:name
+                    , x
+                    , y
+                    , pX
+                    , pY
+                    , dir
+                    , jumps
+                    , speed
+                    , color
+                   }
+        }
+    </script>
+    <script>
+        var LT = 0, RT = 1, UP = 2, DN = 3, direction = DN;
+        var speed = 1; 
+
+        var gameModel = {position: [320,240]
+                    ,direction: DN}
+
+        let moveUp = (pos) => [pos[0], pos[1] - speed];
+        let moveDown = (pos) => [pos[0], pos[1] + speed];
+        let moveLeft = (pos) => [pos[0] - speed, pos[1]];
+        let moveRight = (pos) => [pos[0] + speed, pos[1]];
+        let posBufferLookup = (w,h) => {
+            return (pos) => ((pos[1]*w + pos[0] ) * pixelDensity()) 
+            // 4 * ((y * d + j) * width * d + (x * d + i));
+        } 
+
+        let pos2Index = {};
+
+        function connectToElm() {
+            elmApp.worker
+        }
+        function fromElm() {
+
+        }
+
+        function keyPressed() {
+            // console.log(keyCode, gameModel.position)
+            if (keyCode === 87 /*w*/) { direction = UP}
+            if (keyCode === 65 /*a*/ ) { direction = LT}
+            if (keyCode === 83 /*s*/) { direction = DN}
+            if (keyCode === 68 /*d*/) { direction = RT}
+            if (keyCode === 80 /*p*/) { 
+                speed = speed > 0 ? 0 : 1 
+                if(speed == 0 ) {
+                    noLoop();
+                } else {
+                    loop();
+                }
+            }
+            
+
+            console.log("dir = ", direction, gameModel.position)
+            gameModel = Object.assign({},{position: gameModel.position, direction: direction})
+        }
+
+        function setup() {
+            let canvas = createCanvas(640,480);
+            canvas.parent('appContainer')
+            // noLoop();
+            console.log(width,height)
+            pos2Index  = posBufferLookup(width,height)
+            // noLoop();        
+
+            // connectToElm();
+        }
+
+        let nextPosition = gameModel.position
+            ,buffer
+            ,nextPixel
+
+        function draw() {
+            // fill(0,100,0)
+            noFill();
+            stroke(200,0,0);
+            rect(0,0,639,479);
+            stroke(0,200,0);
+            
+            switch(gameModel.direction) {
+                case UP:
+                    nextPosition = moveUp(gameModel.position)
+                    break;
+                case DN:
+                    nextPosition = moveDown(gameModel.position)
+                    break;
+                case LT:
+                    nextPosition = moveLeft(gameModel.position)
+                    break;
+                case RT:
+                    nextPosition = moveRight(gameModel.position)
+                    break;
+                default:
+                    nextPosition = moveDown(gameModel.position)
+                
+            }
+
+            //check to see if we are colliding with some color
+            if(speed > 0) {
+                loadPixels()
+                nextPixel = get(nextPosition[0],nextPosition[1])
+
+                if(nextPixel[0] + nextPixel[1] + nextPixel[2] > 0 ) {
+                    // background(200,200,100,100);
+                    console.log("we have a collision", nextPixel)
+                    speed = 0;
+                    fill('red')
+                    rect(gameModel.position[0],gameModel.position[1],5,5)
+                } else {
+                    line(gameModel.position[0], gameModel.position[1],nextPosition[0],nextPosition[1])
+                    gameModel.position = nextPosition
+                }
+
+            }
+
+            // if( pixels[nextInd * 4]  > 0 || pixels[nextInd * 4 + 1]  > 0 || pixels[nextInd * 4 + 2] > 0 ) {
+            //     fill(200,200,0)
+            //     rect(0,0,width,height   )
+            //     noFill();
+            // }
+
+
+        }
+                // app.po
+    </script>
+    <title>Snake Den</title>
+</head>
+<body>
+   <section id="appContainer" class="w3-container w3-padding    ">
+   </section> 
+</body>
+</html>
