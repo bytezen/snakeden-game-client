@@ -11,6 +11,7 @@ port module Snakeden exposing (..)
 import Json.Decode as Decode
 -- https://github.com/elm-lang/elm-make/issues/127
 import Json.Decode.Pipeline as Pipeline 
+import Json.Encode as JsEncode
 
 -- import Dict exposing (Dict)
 
@@ -67,7 +68,8 @@ showMove m =
 
 -- Browser-bound (-> Cmd msg)
 port movePlayer : String -> Cmd msg
-
+-- port jsonPortTest : JsEncode.Value -> Cmd msg
+port jsonPortTest : String -> Cmd msg
 
 -- Elm-bound (-> Sub msg)
 port playerInput : (Decode.Value -> msg) -> Sub msg
@@ -111,10 +113,18 @@ init =
 -- Process the incoming values and dispatch the updated capacity
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let 
+        encodePlayerMove player direction =
+            JsEncode.object [("player",JsEncode.string player)
+                            ,("direction",JsEncode.string direction)
+                            ]
+    in
     case msg of
         PlayerMove (Ok {player,move}) ->
             -- send out the move for this player as command
             (model,movePlayer (player ++ "," ++ (showMove move)) )
+            -- (model, jsonPortTest <| Decode.decodeString Decode.Value (encodePlayerMove player (showMove move)) )
+            -- (model, jsonPortTest 11)
         PlayerMove (Err msg) ->
             (model, movePlayer msg)
 

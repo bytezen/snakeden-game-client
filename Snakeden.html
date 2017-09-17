@@ -8,15 +8,56 @@
     <script src="js/p5.min.js"></script>
     <script src="js/p5.dom.min.js"></script>
     <script src="js/lodash.min.js"></script>
-    <!-- Player object -->
+
+    <title>Snake Den</title>
+</head>
+<body>
+   <section id="appContainer" class="w3-container w3-padding    ">
+   </section> 
+
+   <!-- setup the Elm bridge -->
+   <script>
+   
+   </script>
+   <!-- <script type="text/javascript" src="Snakeden.js"></script> -->
+   <script type="text/javascript" src="SnakedenJson.js"></script>
+   <script type="text/javascript" src="snakeden-ports.js"></script>
+   <script type="text/javascript">
+    ; (function() {
+
+      // Allow access to "snakeden" via the developer console
+      const propName = 'snakeden';
+      let module = this['snakedenPorts']; 
+
+      // make sure that we are all loaded and ready to go
+
+      if (typeof module === 'object'
+          && propName in module
+          && typeof this[propName] === 'undefined') {
+
+          this[propName] = module[propName];
+
+      } else {
+        console.log(
+          'Any one or more of the following PROBLEMS were encountered:\
+          \n  - "snakeden" is ALREADY DEFINED.\
+          \n  - "snakedenPorts" is NOT DEFINED or isn\'t an "object".\
+          \n  - "snakedenPorts.snakeden" is NOT DEFINED.'
+        );
+      }
+    }).call(this);
+  </script>
+
+
+   <!-- Player object -->
     <script>
         let getPlayer = (name, opts = {}) => {
             console.log(opts)
             let config = _.assign({
                                     initX: 0
                                     ,initY: 0
-                                    ,dir: "down"
-                                    ,jumps: 3
+                                    ,initDirection: "down"
+                                    ,initJumps: 3
                                     ,speed: 1
                                     ,color: "black"
                                     }
@@ -31,6 +72,8 @@
                 , jumps = config.initJumps
                 , speed = config.speed
                 , color = config.color
+                , alive = true
+                , jumping = false
             
             return {name:name
                     , x
@@ -41,10 +84,22 @@
                     , jumps
                     , speed
                     , color
+                    , alive
+                    , jumping
                    }
         }
     </script>
+
+    <!-- Game script -->
     <script>
+        let players = {} 
+            ,posUpdate = {
+                 up:    (x,y,speed) => [x,y-speed]
+                ,down:  (x,y,speed) => [x,y+speed]
+                ,left:  (x,y,speed) => [x-speed,y]
+                ,right: (x,y,speed) => [x+speed,y]
+            }
+
         var LT = 0, RT = 1, UP = 2, DN = 3, direction = DN;
         var speed = 1; 
 
@@ -60,21 +115,43 @@
             // 4 * ((y * d + j) * width * d + (x * d + i));
         } 
 
-        let pos2Index = {};
+       let addPlayer = (obj) => {
+                            players[obj.name] = obj
+                        }
+        /*
 
-        function connectToElm() {
-            elmApp.worker
-        }
-        function fromElm() {
+        */
+        let changeDirection = (fromElm) => {
+                                console.log('got something from elm -- ',fromElm)
+                                //now the idea is to set the direction of the player with
+                                //the matching name
+                                let [name,dir] = fromElm.split(',')
+                                let p = players[name]
+                                if(!_.isNil(p)) {
+                                    console.log('got a new direction for ', name, ': ', p, ' new direction = ', dir)
+                                    p.dir = dir.toLowerCase()
+                                } else {
+                                    console.error("directions for unknown player: ", fromElm)
+                                }
+                                 
+                              }
+         //hookup to Elm
+        this.snakedenPorts.snakeden.ports.movePlayer.subscribe(changeDirection)
+        let portPlayerInput = this.snakedenPorts.snakeden.ports.playerInput
+           ,inputUp = player => { return {player,move : "up"}}
+           ,inputDown = player => { return {player,move : "down"}}
+           ,inputLeft = player => { return {player,move : "left"}}
+           ,inputRight = player => { return {player,move : "right"}}
 
-        }
-
+        //this should be coming from Elm!!
         function keyPressed() {
+
+
             // console.log(keyCode, gameModel.position)
-            if (keyCode === 87 /*w*/) { direction = UP}
-            if (keyCode === 65 /*a*/ ) { direction = LT}
-            if (keyCode === 83 /*s*/) { direction = DN}
-            if (keyCode === 68 /*d*/) { direction = RT}
+            if (keyCode === 87 /*w*/) { portPlayerInput.send(inputUp("green")); } //direction = UP}
+            if (keyCode === 65 /*a*/ ) { portPlayerInput.send(inputLeft("green")); } //direction = LT}
+            if (keyCode === 83 /*s*/) { portPlayerInput.send(inputDown("green")); } //direction = DN}
+            if (keyCode === 68 /*d*/) { portPlayerInput.send(inputRight("green")); } //direction = RT}
             if (keyCode === 80 /*p*/) { 
                 speed = speed > 0 ? 0 : 1 
                 if(speed == 0 ) {
@@ -92,9 +169,10 @@
         function setup() {
             let canvas = createCanvas(640,480);
             canvas.parent('appContainer')
+            addPlayer(getPlayer('green',{initX:320,initY:240,color:"green",speed:1}))
             // noLoop();
             console.log(width,height)
-            pos2Index  = posBufferLookup(width,height)
+            // pos2Index  = posBufferLookup(width,height)
             // noLoop();        
 
             // connectToElm();
@@ -104,63 +182,55 @@
             ,buffer
             ,nextPixel
 
+        let updatePos = obj => {
+                             newPos = posUpdate[obj.dir](obj.x
+                                                        ,obj.y
+                                                        ,obj.jumping ? 10 : obj.speed)
+                             obj.pX = obj.x
+                             obj.pY = obj.y
+                             obj.x = newPos[0]
+                             obj.y = newPos[1]
+                             obj.jumping = false
+                             obj.alive =  !collided(obj.x,obj.y)
+                                
+                         }
+             ,collided = (x,y) => {
+                             let pxl = get(x,y)
+                             return (pxl[0] + pxl[1] + pxl[2])> 0
+                         }
+
+        function update() {
+            loadPixels();
+
+                
+            //filter out the alive players
+            let alive = _.filter(_.values(players), p => p.alive )
+            _.each(alive, updatePos)
+
+
+            //check to see if there is a collision
+            //if there is then set alive to false.
+            //for each alive player update the position and prevPosition
+        }
+
+
         function draw() {
             // fill(0,100,0)
             noFill();
             stroke(200,0,0);
             rect(0,0,639,479);
             stroke(0,200,0);
-            
-            switch(gameModel.direction) {
-                case UP:
-                    nextPosition = moveUp(gameModel.position)
-                    break;
-                case DN:
-                    nextPosition = moveDown(gameModel.position)
-                    break;
-                case LT:
-                    nextPosition = moveLeft(gameModel.position)
-                    break;
-                case RT:
-                    nextPosition = moveRight(gameModel.position)
-                    break;
-                default:
-                    nextPosition = moveDown(gameModel.position)
-                
-            }
 
-            //check to see if we are colliding with some color
-            if(speed > 0) {
-                loadPixels()
-                nextPixel = get(nextPosition[0],nextPosition[1])
 
-                if(nextPixel[0] + nextPixel[1] + nextPixel[2] > 0 ) {
-                    // background(200,200,100,100);
-                    console.log("we have a collision", nextPixel)
-                    speed = 0;
-                    fill('red')
-                    rect(gameModel.position[0],gameModel.position[1],5,5)
-                } else {
-                    line(gameModel.position[0], gameModel.position[1],nextPosition[0],nextPosition[1])
-                    gameModel.position = nextPosition
-                }
-
-            }
-
-            // if( pixels[nextInd * 4]  > 0 || pixels[nextInd * 4 + 1]  > 0 || pixels[nextInd * 4 + 2] > 0 ) {
-            //     fill(200,200,0)
-            //     rect(0,0,width,height   )
-            //     noFill();
-            // }
+            update();
+            _.each( _.filter( _.values(players) , p => p.alive)
+                  , aliveP => {
+                         line(aliveP.pX, aliveP.pY, aliveP.x, aliveP.y)
+                  })
 
 
         }
                 // app.po
     </script>
-    <title>Snake Den</title>
-</head>
-<body>
-   <section id="appContainer" class="w3-container w3-padding    ">
-   </section> 
 </body>
 </html>
